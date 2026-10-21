@@ -34,9 +34,12 @@ async def create_or_update_vlan(router_name: str, vlan_id: int, vlan_name: str =
     cmds = ["configure terminal", f"vlan {vlan_id}"]
     if vlan_name:
         cmds.append(f"name {vlan_name}")
-    cmds.append("end")
+        
+    # 'end' exits config mode, 'exit' terminates the shell session so the command completes
+    cmds.extend(["end", "exit"])
     
-    cmd_string = "\n".join(cmds)
+    # Ensure commands are newline-separated and terminate with a final newline
+    cmd_string = "\n".join(cmds) + "\n"
 
     try:
         async with asyncssh.connect(
@@ -45,11 +48,15 @@ async def create_or_update_vlan(router_name: str, vlan_id: int, vlan_name: str =
             password=router.password,
             known_hosts=None,
         ) as conn:
-            result = await conn.run(cmd_string, check=True)
+            # The "invalid autocommand" error happens when passing multiple lines directly 
+            # to the SSH exec channel. By passing them as `input` instead, we send the 
+            # commands directly into the router's interactive shell.
+            result = await conn.run(input=cmd_string)
+            
             return {
                 "status": "success", 
                 "message": f"VLAN {vlan_id} configured.", 
-                "details": result.stdout.strip()
+                "details": result.stdout.strip() if result.stdout else ""
             }
     except Exception as e:
         logging.warning(f"Failed to configure VLAN {vlan_id} on {router.name}: {e}")
@@ -80,8 +87,11 @@ async def assign_interface_vlan(
     else:
         return {"error": "Invalid mode. Use 'access' or 'trunk'."}
         
-    cmds.append("end")
-    cmd_string = "\n".join(cmds)
+    # 'end' exits config mode, 'exit' terminates the shell session
+    cmds.extend(["end", "exit"])
+    
+    # Ensure commands are newline-separated and terminate with a final newline
+    cmd_string = "\n".join(cmds) + "\n"
 
     try:
         async with asyncssh.connect(
@@ -90,11 +100,13 @@ async def assign_interface_vlan(
             password=router.password,
             known_hosts=None,
         ) as conn:
-            result = await conn.run(cmd_string, check=True)
+            # Pass commands via 'input' instead of as a direct execution argument
+            result = await conn.run(input=cmd_string)
+            
             return {
                 "status": "success", 
                 "message": f"{interface_name} updated successfully.", 
-                "details": result.stdout.strip()
+                "details": result.stdout.strip() if result.stdout else ""
             }
     except Exception as e:
         logging.warning(f"Interface VLAN assignment failed on {router.name}: {e}")
@@ -105,7 +117,16 @@ async def delete_vlan(router_name: str, vlan_id: int) -> dict:
     router = get_router(router_name)
     logging.info(f"Deleting VLAN {vlan_id} from {router.name} ({router.host})")
 
-    cmd_string = f"configure terminal\nno vlan {vlan_id}\nend"
+    # Use a list to build commands safely, exiting both config and exec modes
+    cmds = [
+        "configure terminal",
+        f"no vlan {vlan_id}",
+        "end",
+        "exit"
+    ]
+    
+    # Ensure commands are newline-separated and terminate with a final newline
+    cmd_string = "\n".join(cmds) + "\n"
 
     try:
         async with asyncssh.connect(
@@ -114,11 +135,13 @@ async def delete_vlan(router_name: str, vlan_id: int) -> dict:
             password=router.password,
             known_hosts=None,
         ) as conn:
-            result = await conn.run(cmd_string, check=True)
+            # Pass commands via 'input' instead of as a direct execution argument
+            result = await conn.run(input=cmd_string)
+            
             return {
                 "status": "success", 
                 "message": f"VLAN {vlan_id} deleted.", 
-                "details": result.stdout.strip()
+                "details": result.stdout.strip() if result.stdout else ""
             }
     except Exception as e:
         logging.warning(f"Failed to delete VLAN {vlan_id} on {router.name}: {e}")

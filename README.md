@@ -31,8 +31,19 @@
 ## Configure the routing on RaspberryPI eth0 before attaching the ethernet cable 
 ```bash
 sudo nmcli connection modify "eth0"   connection.autoconnect yes   ipv4.method manual   ipv4.addresses 192.168.0.2/24   ipv4.gateway "192.168.0.1"   ipv4.never-default yes   ipv4.routes "172.16.0.0/24 192.168.0.1, 1.1.1.1/32 192.168.0.1, 2.2.2.0/24 192.168.0.1, 3.3.3.0/24 192.168.0.1"
+```
+### If SD-card is cloned these need to be run
+```bash
+sudo nmcli connection modify "eth0" 802-3-ethernet.mac-address ""
+sudo nmcli connection modify "eth0" connection.interface-name "eth0"
+```
+
+### Run after changes
+
+```bash
 sudo nmcli connection up "eth0"
 ```
+
 ## Running the System
 
 use python or python3 depending on which is used

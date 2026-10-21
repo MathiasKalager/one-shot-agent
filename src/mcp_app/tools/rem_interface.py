@@ -192,28 +192,58 @@ async def remove_interface(
             return {"status": "error", "message": str(e)}
 
 
+
+
+
+
+import asyncio
+import asyncssh
+
 async def set_interface_description(
     router_name: str, interface_name: str, description: str
 ) -> dict:
     router = get_router(router_name)
     logging.info(f"Setting description for {interface_name} on {router.name} ({router.host})")
-    intf = encode_intf(interface_name)
-    base = f"https://{router.host}/restconf"
 
-    payload = {
-        "ietf-interfaces:interface": {
-            "name": interface_name,
-            "description": description,
-        }
-    }
+    # Kommandoene vi skal skrive inn i terminalen
+    commands = [
+        "configure terminal",
+        f"interface {interface_name}",
+        f"description {description}",
+        "end",
+        "exit"
+    ]
 
-    async with get_client(router) as client:
-        r = await client.patch(
-            f"{base}/data/ietf-interfaces:interfaces/interface={intf}", json=payload
-        )
-        r.raise_for_status()
-        return {"result": f"Description set on {interface_name}"}
-
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            
+            # Opprett en interaktiv prosess (PTY) som lurer ruteren til å tro vi er en ekte terminal
+            async with conn.create_process(term_type='vt100') as process:
+                
+                # Send én og én kommando med en kort pause
+                for cmd in commands:
+                    process.stdin.write(cmd + '\n')
+                    await asyncio.sleep(0.2)  # Gi Cisco-ruteren tid til å prosessere linjen
+                
+                # Lukk inndata-strømmen slik at vi kan lese resultatet uten å henge
+                process.stdin.write_eof()
+                
+                # Les all tekst ruteren spyttet ut tilbake
+                output = await process.stdout.read()
+                
+            return {
+                "result": f"Description set on {interface_name}",
+                "output": output.strip()
+            }
+            
+    except Exception as e:
+        logging.error(f"Failed to set description on {router.name} ({router.host}): {e}")
+        return {"error": str(e)}
 
 def rem_interface_tools(mcp):
     mcp.tool(

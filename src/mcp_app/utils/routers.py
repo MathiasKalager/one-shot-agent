@@ -11,9 +11,9 @@ class Router:
 
 # Her legger vi inn alle rutere vi vil støtte
 ROUTERS = {
-    "router1": Router(name="R1", host="1.1.1.1", user="restconf", password="pswd"),
-    "router2": Router(name="R2", host="2.2.2.2", user="restconf", password="pswd"),
-    "router3": Router(name="R3", host="3.3.3.3", user="restconf", password="pswd"),
+    "router1": Router(name="R1", host="1.1.1.1", user="cisco", password="class"),
+    "router2": Router(name="R2", host="2.2.2.2", user="cisco", password="class"),
+    "router3": Router(name="R3", host="3.3.3.3", user="cisco", password="class"),
 }
 
 

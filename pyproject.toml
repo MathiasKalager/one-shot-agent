@@ -20,6 +20,7 @@ dependencies = [
     "fastmcp==2.2.0",
     "ruff",
     "asyncssh==2.22.0",
+    "prompt_toolkit==3.0.53"
 ]
 
 [build-system]

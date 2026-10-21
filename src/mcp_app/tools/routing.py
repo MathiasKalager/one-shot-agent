@@ -80,7 +80,6 @@ def register_router_tools(mcp):
             "Use for route-path diagnosis before remediation."
         )
     )(get_routing_table)
-
     mcp.tool(
         description=(
             "Filter operational routes to those using a specific outgoing interface. "

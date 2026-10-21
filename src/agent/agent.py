@@ -1,6 +1,8 @@
 import asyncio
 import json
 from typing import Annotated, TypedDict
+from prompt_toolkit import PromptSession
+from prompt_toolkit.key_binding import KeyBindings
 
 from dotenv import load_dotenv
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
@@ -12,15 +14,16 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode, tools_condition
 
 from .utils.sanitize_message import sanitize_messages
+from .utils.dump import dump, new_request_id, new_session_id
 
 load_dotenv()
 
-PROMPT = """You are a helpful network AI assistant. 
+PROMPT = """You are a helpful network AI assistant from Texas, howdy. 
 You get tools from a mcp server.
 You are only allowed to use these tools.
 the router names are router1, router2, router3. Use this names when you call the tools. (map example: 1 -> router1...) 
 When tools are called, report each tool's name and whether its execution succeeded or failed, then give the answer. Do not infer that a router is down from a tool error alone. Be explicit about uncertainty.
-Answers should be concise, brief and to the point.
+Answers should be terminal friendly, concise, brief and to the point.
 """
 
 class AgentState(TypedDict):
@@ -46,6 +49,23 @@ def ingestion(state: AgentState) -> dict:
             HumanMessage(content=user_text)
         ]
     }
+
+def create_prompt_session():
+    kb = KeyBindings()
+
+    @kb.add("enter")
+    def submit(event):
+        event.current_buffer.validate_and_handle()
+
+    @kb.add("escape", "enter")
+    def newline(event):
+        event.current_buffer.insert_text("\n")
+
+    return PromptSession(
+        multiline=True,
+        key_bindings=kb,
+        enable_history_search=True,
+    )
 
 def build_graph(llm, tools):
     async def agent(state: AgentState) -> dict:
@@ -128,22 +148,66 @@ async def main():
 
     app = build_graph(llm, tools)
 
-    config = {"configurable": {"thread_id": "chat-1"}}
 
-    while True:
-        user_text = input("> ").strip()
-        if user_text.lower() in {"exit", "quit"}:
-            break
-        try:
-            state = await app.ainvoke({"user_input": user_text}, config=config)
-        except Exception as e:
-            print(f"Graf-feil: {e}")
-            continue
+    session_id = new_session_id()
 
-        # Siste AIMessage etter eventuelle tool-runder
-        last = state["messages"][-1]
-        if isinstance(last, AIMessage):
-            print("Assistant:", last.text)
+    config = {
+        "configurable": {
+            "thread_id": f"chat-{session_id}"
+        }
+    }
+    thread_id = config["configurable"]["thread_id"]
+    dump(
+        None,
+        thread_id,
+        session_id,
+        "session_start",
+    )
+    print("Hi I am Emil your AI assistant. How can I help you?")
+    print("Type 'exit' or 'quit' to end the session.")
+    session = create_prompt_session()
+    try:
+        while True:
+            user_text = (await session.prompt_async("> ")).strip()
+            if user_text.lower() in {"exit", "quit"}:
+                break
+            if not user_text:
+                continue
+            request_id = new_request_id()
+            dump(
+                request_id,
+                thread_id,
+                session_id,
+                "user_input",
+                input=user_text,
+            )
+            try:
+                state = await app.ainvoke(
+                    {"user_input": user_text},
+                    config=config,
+                )
+            except Exception as e:
+                print(f"Graf-feil: {e}")
+                dump(
+                    request_id,
+                    thread_id,
+                    session_id,
+                    "agent_error",
+                    error=str(e),
+                )
+                continue
+            last = state["messages"][-1]
+            if isinstance(last, AIMessage):
+                print("Emil:", last.text)
+
+    finally:
+        dump(
+            None,
+            thread_id,
+            session_id,
+            "session_end",
+        )
+
 
 if __name__ == "__main__":
     try:

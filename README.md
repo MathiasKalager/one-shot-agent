@@ -12,17 +12,21 @@
    pip install -e .
    ```
 
-4. Copy and configure the environment file:
+## Copy and configure the environment file:
    ```bash
    cp .env.example .env  # If example exists, otherwise create .env
    ```
+## API-key from OPENAI
+   - Need to create an organization/project from [OPENAI](https://platform.openai.com/home)
+   - Generate an API key 
+   - Copy the API into .env file.
 
-5. Configure routers in `src/mcp/utils/routers.py`:
+## Configure routers in `src/mcp/utils/routers.py`:
    - Update the `ROUTERS` dictionary with your actual router details (IP addresses, usernames, passwords).
    - Each router must have RESTCONF enabled to use MCP tools.
    - For ping and traceroute functionality, routers must have SSH enabled.
 
-## Configure the routing on eth0 before attaching the ethernet cable 
+## Configure the routing on RaspberryPI eth0 before attaching the ethernet cable 
 ```bash
 sudo nmcli connection modify "eth0"   connection.autoconnect yes   ipv4.method manual   ipv4.addresses 192.168.0.2/24   ipv4.gateway "192.168.0.1"   ipv4.never-default yes   ipv4.routes "172.16.0.0/24 192.168.0.1, 1.1.1.1/32 192.168.0.1, 2.2.2.0/24 192.168.0.1, 3.3.3.0/24 192.168.0.1"
 sudo nmcli connection up "eth0"

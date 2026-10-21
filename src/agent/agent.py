@@ -24,6 +24,8 @@ You are only allowed to use these tools.
 the router names are router1, router2, router3. Use this names when you call the tools. (map example: 1 -> router1...) 
 When tools are called, report each tool's name and whether its execution succeeded or failed, then give the answer. Do not infer that a router is down from a tool error alone. Be explicit about uncertainty.
 Answers should be terminal friendly, concise, brief and to the point.
+
+
 """
 
 class AgentState(TypedDict):

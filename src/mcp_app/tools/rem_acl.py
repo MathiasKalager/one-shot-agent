@@ -310,6 +310,138 @@ async def delete_acl(router_name: str, acl_name: str, acl_type: str) -> dict:
             logging.error(f"Feil ved sletting av ACL {acl_name} på {router.name}: {e}")
             return {"status": "error", "message": str(e)}
 
+async def add_extended_acl_rule(
+    router_name: str,
+    acl_name: str,
+    action: str,
+    protocol: str,
+    src_ip: str,
+    src_mask: str,
+    dst_ip: str,
+    dst_mask: str,
+    src_port: str = None,
+    dst_port: str = None,
+    sequence_num: int = None
+) -> dict:
+    router = get_router(router_name)
+    logging.info(f"Adding extended ACL rule to {acl_name} on {router.name} ({router.host})")
+
+    # Build the rule string dynamically based on provided parameters
+    rule_parts = []
+    if sequence_num is not None:
+        rule_parts.append(str(sequence_num))
+    
+    rule_parts.extend([action, protocol, src_ip, src_mask])
+    if src_port:
+        rule_parts.append(src_port)  # e.g., "eq 80" or "range 1000 2000"
+        
+    rule_parts.extend([dst_ip, dst_mask])
+    if dst_port:
+        rule_parts.append(dst_port)
+
+    rule_str = " ".join(rule_parts)
+    
+    cmd = f"""conf t
+ip access-list extended {acl_name}
+{rule_str}
+end
+"""
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            result = await conn.run(cmd, check=True)
+            return {"output": f"Successfully added rule: {rule_str}", "raw_output": result.stdout.strip()}
+    except Exception as e:
+        logging.warning(f"Failed to add extended ACL rule on {router.name}: {e}")
+        return {"error": str(e)}
+
+
+async def remove_extended_acl_rule(
+    router_name: str,
+    acl_name: str,
+    rule_string: str
+) -> dict:
+    router = get_router(router_name)
+    logging.info(f"Removing specific extended rule from {acl_name} on {router.name}")
+
+    cmd = f"""conf t
+ip access-list extended {acl_name}
+no {rule_string}
+end
+"""
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            result = await conn.run(cmd, check=True)
+            return {"output": f"Successfully removed rule: {rule_string}", "raw_output": result.stdout.strip()}
+    except Exception as e:
+        logging.warning(f"Failed to remove extended ACL rule on {router.name}: {e}")
+        return {"error": str(e)}
+
+
+async def delete_acl_rule(
+    router_name: str,
+    acl_name: str,
+    sequence_num: int,
+    is_extended: bool = True
+) -> dict:
+    router = get_router(router_name)
+    logging.info(f"Deleting rule sequence {sequence_num} from ACL {acl_name} on {router.name}")
+
+    acl_type = "extended" if is_extended else "standard"
+    cmd = f"""conf t
+ip access-list {acl_type} {acl_name}
+no {sequence_num}
+end
+"""
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            result = await conn.run(cmd, check=True)
+            return {"output": f"Successfully deleted sequence {sequence_num} from {acl_name}", "raw_output": result.stdout.strip()}
+    except Exception as e:
+        logging.warning(f"Failed to delete ACL sequence on {router.name}: {e}")
+        return {"error": str(e)}
+
+
+async def resequence_acl(
+    router_name: str,
+    acl_name: str,
+    starting_seq: int = 10,
+    increment: int = 10
+) -> dict:
+    router = get_router(router_name)
+    logging.info(f"Resequencing ACL {acl_name} on {router.name}")
+
+    cmd = f"""conf t
+ip access-list resequence {acl_name} {starting_seq} {increment}
+end
+"""
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            result = await conn.run(cmd, check=True)
+            return {"output": f"Successfully resequenced ACL {acl_name}", "raw_output": result.stdout.strip()}
+    except Exception as e:
+        logging.warning(f"Failed to resequence ACL on {router.name}: {e}")
+        return {"error": str(e)}
+
 
 def rem_acl_tools(mcp):
     mcp.tool(
@@ -340,6 +472,29 @@ def rem_acl_tools(mcp):
     )(delete_acl)
     mcp.tool(
         description=(
-            "Create a new extended ACL with an initial any-to-any rule skeleton."
+            "Add a rule to an extended ACL. Requires parameters for action (permit/deny), protocol (ip, tcp, udp, etc.), "
+            "source IP/mask, and destination IP/mask. Optionally accepts source_port (e.g., 'eq 80'), "
+            "destination_port, and a specific sequence_num."
         )
-    )(create_extended_acl)
+    )(add_extended_acl_rule)
+    
+    mcp.tool(
+        description=(
+            "Remove a specific extended rule by providing its exact string representation. "
+            "Example rule_string: 'permit tcp 192.168.1.0 0.0.0.255 any eq 80'"
+        )
+    )(remove_extended_acl_rule)
+    
+    mcp.tool(
+        description=(
+            "Remove a specific rule (ACE) from an existing ACL based on its sequence number. "
+            "Highly recommended over exact string matching to avoid syntax mismatch errors. Set is_extended=False for standard ACLs."
+        )
+    )(delete_acl_rule)
+    
+    mcp.tool(
+        description=(
+            "Renumber the ACE sequence numbers in an ACL. Since ACLs process top-down, "
+            "resequencing (e.g., starting at 10, incrementing by 10) creates gaps to insert new rules between existing ones."
+        )
+    )(resequence_acl)

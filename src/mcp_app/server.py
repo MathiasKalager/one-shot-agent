@@ -13,6 +13,7 @@ from .tools.rem_dhcp import rem_dhcp_tools
 from .tools.rem_interface import rem_interface_tools
 from .tools.rem_ospf import rem_ospf_tools
 from .tools.rem_routing import rem_routing_tools
+from .tools.rem_vlan_switch import rem_vlan_tools
 
 # ----------------- LOGGING -----------------
 logging.basicConfig(
@@ -37,6 +38,7 @@ rem_routing_tools(mcp)
 rem_acl_tools(mcp)
 rem_ospf_tools(mcp)
 rem_dhcp_tools(mcp)
+rem_vlan_tools(mcp)
 
 # SSH-baserte verktøy:
 register_ping_tools(mcp)

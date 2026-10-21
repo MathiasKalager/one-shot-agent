@@ -16,10 +16,12 @@
    ```bash
    cp .env.example .env  # If example exists, otherwise create .env
    ```
-## API-key from OPENAI
+### API-key from OPENAI
    - Need to create an organization/project from [OPENAI](https://platform.openai.com/home)
    - Generate an API key 
    - Copy the API into .env file.
+### Change Group Name
+   - Edit GROUP_NAME="" to the current group
 
 ## Configure routers in `src/mcp/utils/routers.py`:
    - Update the `ROUTERS` dictionary with your actual router details (IP addresses, usernames, passwords).

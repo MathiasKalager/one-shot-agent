@@ -245,6 +245,78 @@ async def set_interface_description(
         logging.error(f"Failed to set description on {router.name} ({router.host}): {e}")
         return {"error": str(e)}
 
+async def configure_subinterface(
+    router_name: str,
+    interface_name: str,
+    sub_id: int,
+    vlan_id: int,
+    ip_address: str,
+    subnet_mask: str
+) -> dict:
+    router = get_router(router_name)
+    subinterface = f"{interface_name}.{sub_id}"
+    logging.info(f"Configuring RoaS on {subinterface} (VLAN {vlan_id}) on {router.name} ({router.host})")
+
+    # The sequence of commands to set up the subinterface and enable the physical port
+    cmds = [
+        "configure terminal",
+        f"interface {subinterface}",
+        f"encapsulation dot1Q {vlan_id}",
+        f"ip address {ip_address} {subnet_mask}",
+        "exit",
+        f"interface {interface_name}",
+        "no shutdown",  # Physical interface must be up for subinterfaces to work
+        "end"
+    ]
+    
+    cmd_string = "\n".join(cmds)
+
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            result = await conn.run(cmd_string, check=True)
+            return {
+                "status": "success",
+                "message": f"Subinterface {subinterface} configured as gateway for VLAN {vlan_id}.",
+                "details": result.stdout.strip()
+            }
+    except Exception as e:
+        logging.warning(f"Failed to configure subinterface on {router.name}: {e}")
+        return {"error": str(e)}
+
+
+async def remove_subinterface(
+    router_name: str,
+    interface_name: str,
+    sub_id: int
+) -> dict:
+    router = get_router(router_name)
+    subinterface = f"{interface_name}.{sub_id}"
+    logging.info(f"Removing subinterface {subinterface} from {router.name} ({router.host})")
+
+    cmd_string = f"configure terminal\nno interface {subinterface}\nend"
+
+    try:
+        async with asyncssh.connect(
+            router.host,
+            username=router.user,
+            password=router.password,
+            known_hosts=None,
+        ) as conn:
+            result = await conn.run(cmd_string, check=True)
+            return {
+                "status": "success",
+                "message": f"Subinterface {subinterface} deleted.",
+                "details": result.stdout.strip()
+            }
+    except Exception as e:
+        logging.warning(f"Failed to remove subinterface {subinterface} on {router.name}: {e}")
+        return {"error": str(e)}
+
 def rem_interface_tools(mcp):
     mcp.tool(
         description=(
@@ -267,3 +339,18 @@ def rem_interface_tools(mcp):
     mcp.tool(
         description=("Set interface description text for documentation and operational clarity.")
     )(set_interface_description)
+
+    mcp.tool(
+        description=(
+            "Configure a router-on-a-stick subinterface with 802.1Q encapsulation and an IP address via SSH. "
+            "Pass the base interface_name (e.g. 'GigabitEthernet1/0'), sub_id (e.g. 10), vlan_id, ip_address, and subnet_mask. "
+            "This automatically enables the physical parent interface."
+        )
+    )(configure_subinterface)
+    
+    mcp.tool(
+        description=(
+            "Remove a router-on-a-stick subinterface via SSH. "
+            "Pass the base interface_name and sub_id (e.g. interface_name='GigabitEthernet1/0', sub_id=10)."
+        )
+    )(remove_subinterface)

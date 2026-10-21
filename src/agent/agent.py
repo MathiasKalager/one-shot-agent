@@ -18,10 +18,10 @@ from .utils.dump import dump, new_request_id, new_session_id
 
 load_dotenv()
 
-PROMPT = """You are a helpful network AI assistant from Texas, howdy. 
+PROMPT = """You are a helpful network AI assistant. 
 You get tools from a mcp server.
 You are only allowed to use these tools.
-the router names are router1, router2, router3. Use this names when you call the tools. (map example: 1 -> router1...) 
+the router names are router1, router2, router3. Use this names when you call the tools. (map example: 1 -> router1... | or switch2) 
 When tools are called, report each tool's name and whether its execution succeeded or failed, then give the answer. Do not infer that a router is down from a tool error alone. Be explicit about uncertainty.
 Answers should be terminal friendly, concise, brief and to the point.
 
@@ -165,7 +165,7 @@ async def main():
         session_id,
         "session_start",
     )
-    print("Hi I am Emil your AI assistant. How can I help you?")
+    print("Hi, how can I help you?")
     print("Type 'exit' or 'quit' to end the session.")
     session = create_prompt_session()
     try:
@@ -200,7 +200,7 @@ async def main():
                 continue
             last = state["messages"][-1]
             if isinstance(last, AIMessage):
-                print("Emil:", last.text)
+                print("Assistant:", last.text)
 
     finally:
         dump(

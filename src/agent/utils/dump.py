@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-GROUP_NAME = os.getenv("GROUP_NAME", "gruppe1")
+GROUP_NAME = os.getenv("GROUP_NAME", "gruppeX")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DUMP_DIR = Path.home() / "Pictures" / "dumps"
-SESSION_FILE = DUMP_DIR / "counter.txt"
+SESSION_FILE = DUMP_DIR / "counter.txt" 
 DUMP_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
 
 

@@ -14,7 +14,9 @@ ROUTERS = {
     "router1": Router(name="R1", host="1.1.1.1", user="cisco", password="class"),
     "router2": Router(name="R2", host="2.2.2.2", user="cisco", password="class"),
     "router3": Router(name="R3", host="3.3.3.3", user="cisco", password="class"),
+    "switch2": Router(name="S2", host="2.2.2.10 ", user="cisco", password="class"),
 }
+
 
 
 def get_router(name: str) -> Router:
